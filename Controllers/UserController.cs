@@ -19,6 +19,18 @@ namespace BamukoyaPhotoApp.Controllers
             _context = context;
         }
 
+        // GET: api/User/search?email={email}
+        [HttpGet("search")]
+        public async Task<ActionResult<UserModel>> SearchUserByEmail(string email)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                return NotFound();
+            }
+            return user;
+        }
+
         // GET: api/User
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserModel>>> GetUsers()

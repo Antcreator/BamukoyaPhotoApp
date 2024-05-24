@@ -27,8 +27,7 @@ namespace BamukoyaPhotoApp.Controllers
 
         // GET: api/Photo
         [HttpGet]
-        [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<PhotoModel>>> GetPhotosByUser()
+        public async Task<ActionResult<IEnumerable<PhotoModel>>> GetPhotos()
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -36,7 +35,19 @@ namespace BamukoyaPhotoApp.Controllers
                 return Unauthorized("User not authenticated.");
             }
 
-            var photos = await _context.Photos.Where(p => p.UserId == userId).ToListAsync();
+            var user = await _context.Users.Include(u => u.Friends).FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return Unauthorized("User not found.");
+            }
+
+            var friendIds = user.Friends.Select(f => f.Id).ToList();
+            friendIds.Add(userId.Value); // Include own photos
+
+            var photos = await _context.Photos
+                .Where(p => friendIds.Contains(p.UserId))
+                .ToListAsync();
+
             return Ok(photos);
         }
 
@@ -48,6 +59,18 @@ namespace BamukoyaPhotoApp.Controllers
             if (photo == null)
             {
                 return NotFound();
+            }
+
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+            {
+                return Unauthorized("User not authenticated.");
+            }
+
+            var user = await _context.Users.Include(u => u.Friends).FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null || (photo.UserId != userId && !user.Friends.Any(f => f.Id == photo.UserId)))
+            {
+                return Unauthorized("You are not authorized to view this photo.");
             }
 
             return Ok(photo);
